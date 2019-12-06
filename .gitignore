@@ -1,0 +1,5 @@
+.history/
+.mypy_cache/
+.idea/sonarlint/
+.dmypy.json
+nxosdebug.log
