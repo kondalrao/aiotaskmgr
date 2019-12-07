@@ -3,14 +3,28 @@
 import asyncio
 import logging
 import signal
+from contextlib import suppress
+from uvloop import Loop as __BaseLoop
+from uvloop import EventLoopPolicy as __BaseEventLoopPolicy
 from typing import Any, Dict, Awaitable, Callable, Generator, Union, NoReturn
 
 from aiotaskmgr.logging import start_action
 
 from .webmonitor import WebMonitor
 
+
 class AIOTaskMgrException(Exception):
     """Exception raised when an application reset is requested."""
+
+
+class Loop(__BaseLoop):
+    pass
+
+
+class EventLoopPolicy(__BaseEventLoopPolicy):
+    def _loop_factory(self):
+        loop = TaskManager().get_event_loop()
+        return Loop() if loop is None else loop
 
 
 class BaseTask(object):
@@ -47,17 +61,16 @@ class TaskManager(object):
         """Control instance creation."""
         if TaskManager.__instance is None:  # pragma: no branch
             TaskManager.__instance = object.__new__(cls)
-            TaskManager.__instance._loop = loop
+            TaskManager.__instance._loop = Loop() if loop is None else loop
             TaskManager.__instance._tasks = {}
-            TaskManager.__instance._aiom = WebMonitor(loop=loop)
-            TaskManager.__instance._aiom.start()
             TaskManager.__instance._interval = 1
             TaskManager.__instance.logger = logging.getLogger('aiotaskmgr.TaskManager')
             TaskManager.__instance.__setup_taskmanager()
         return TaskManager.__instance
 
     def __setup_taskmanager(self):
-        if self._loop is None:   # pragma: no branch
+        if self._loop is not None:   # pragma: no branch
+            asyncio.set_event_loop_policy(EventLoopPolicy())
             self._loop = asyncio.get_event_loop()
             self._loop.set_debug(True)
             self._loop.add_signal_handler(signal.SIGABRT, TaskManager.__handle_exit, signal.SIGQUIT)
@@ -66,6 +79,8 @@ class TaskManager(object):
             self._loop.add_signal_handler(signal.SIGABRT, TaskManager.__handle_exit, signal.SIGABRT)
 
         self._loop.set_task_factory(TaskManager.__task_factory)
+        TaskManager.__instance._aiom = WebMonitor(loop=self._loop)
+        TaskManager.__instance._aiom.start()
 
     @staticmethod
     def __handle_exit(sig: int) -> None:
@@ -83,6 +98,11 @@ class TaskManager(object):
         return task
 
     def __repr__(self):
+        """__repr__."""
+        num_tasks = len(self._tasks)
+        return f"Taskmanager: {num_tasks=}"
+
+    def __str__(self):
         """__repr__."""
         num_tasks = len(self._tasks)
         return f"Taskmanager: {num_tasks=}"
@@ -206,6 +226,16 @@ class TaskManager(object):
         """Context Exit."""
         return self.join()
 
+    def __enter__(self):
+        """Context Enter."""
+        return self
+
+    def __exit__(self, exc_type, exc, t_b):
+        """Context Exit."""
+        with suppress(KeyboardInterrupt):
+            self._loop.run_forever()
+        return asyncio.gather(*self._tasks.keys())
+
 
 class Task(BaseTask):
     """docstring for Task."""
@@ -225,9 +255,11 @@ class Task(BaseTask):
             raise TypeError(f"a coroutine was expected, got {coro!r}")
 
         self._task = self._tm.create_task(self)
+        # print(', '.join("%s: %s" % item for item in vars(self).items()))
+        print(self)
 
     def __repr__(self):
-        return f"Task: {self._task.get_name()}"
+        return f"Task: {self._task.get_name()} q_len: {self._queue.qsize()}"
 
 
 

@@ -12,6 +12,7 @@ allow_prereleases = true
 [packages]
 aiomonitor = "*"
 eliot = "*"
+uvloop = "*"
 
 [dev-packages]
 logging-tree = "*"
