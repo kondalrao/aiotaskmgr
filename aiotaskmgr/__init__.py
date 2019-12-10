@@ -4,6 +4,8 @@ import sys
 if sys.version_info < (3, 8):
     raise RuntimeError("Needs python version >= 3.8")
 
+use_uvloop: bool = False
+
 from .taskmanager import (
     TaskManager,
     BaseTask,

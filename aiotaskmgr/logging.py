@@ -1,12 +1,14 @@
-
+"""Logging."""
 import json as pyjson
+import eliot
 import logging
 import logging.config
 from logging import CRITICAL, DEBUG, ERROR, INFO, WARNING, Handler
 
-from eliot import (Message, add_destinations, add_global_fields,
-                   start_action, to_file, write_traceback)   # noqa
+from eliot import (add_destinations, add_global_fields,
+                   to_file, write_traceback)   # noqa
 from eliot.json import EliotJSONEncoder
+from eliot.testing import capture_logging
 # from eliot.stdlib import EliotHandler
 
 
@@ -17,10 +19,10 @@ logger = logging.getLogger('nxosdebug.internal')
 
 class NXOSHandler(Handler):
     def emit(self, record):
-        Message.log(
+        eliot.log_message(
             message_type="nxosdebug",
             log_level=record.levelname,
-            logger=record.name,
+            # logger=record.name,
             message=record.getMessage(),
         )
         if record.exc_info:
@@ -29,6 +31,8 @@ class NXOSHandler(Handler):
 
 class MyEncoder(EliotJSONEncoder):
     def default(self, obj):
+        if hasattr(obj, '_to_json'):
+            return obj._to_json()
         return EliotJSONEncoder.default(self, obj)
 
 

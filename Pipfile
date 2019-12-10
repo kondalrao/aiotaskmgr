@@ -15,6 +15,7 @@ eliot = "*"
 uvloop = "*"
 
 [dev-packages]
+sphinx = ">=1.8.0b1,<2.2.2"
 logging-tree = "*"
 eliot-tree = "*"
 mypy = "*"

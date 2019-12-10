@@ -1,62 +1,104 @@
-"""docstring."""
+"""Testing TaskManager class."""
 
+import aiotaskmgr
 import asyncio
-import aiounittest
+import unittest
+from aiotaskmgr.logging import capture_logging
+from pprint import pprint as print
 
-from aiotaskmgr import TaskManager, Task
 
+class TaskManagerTests(unittest.TestCase):
 
-class TaskManagerTests(aiounittest.AsyncTestCase):
-    """TaskManagerTests."""
+    def setUp(self) -> None:
+        self.tm = aiotaskmgr.TaskManager()
+        asyncio.new_event_loop()
 
-    def get_event_loop(self):
-        self.my_loop = TaskManager().get_event_loop()
-        return self.my_loop
+    def tearDown(self) -> None:
+        pass
 
-    def change_event_loop(self):
-        try:
-            old_loop = asyncio.get_event_loop()
-            if not old_loop.is_closed():
-                old_loop.close()
-        except RuntimeError:
-            # no default event loop, ignore exception
-            pass
-        _loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(_loop)
+    @classmethod
+    def setUpClass(cls) -> None:
+        pass
 
-        return _loop
+    @classmethod
+    def tearDownClass(cls) -> None:
+        pass
 
     async def test_taskmanager(self):
         """test_taskmanager."""
-        tm1 = TaskManager()
-        tm2 = TaskManager()
+        tm1 = aiotaskmgr.TaskManager()
+        tm2 = aiotaskmgr.TaskManager()
 
         self.assertEqual(tm1, tm2, "Failed.")
 
-    async def test_create_task(self):
+    def test_event_loop(self):
+        tm_loop = self.tm.get_event_loop()
+        loop = asyncio.get_event_loop()
+
+        self.assertIsInstance(tm_loop, aiotaskmgr.taskmanager.Loop)
+        self.assertIsInstance(loop, aiotaskmgr.taskmanager.Loop)
+        self.assertEqual(tm_loop, loop)
+        self.assertEqual(tm_loop.loop_id, loop.loop_id)
+
+    def test_new_event_loop(self):
+        tm_loop = self.tm.get_event_loop()
+        nloop = self.tm.new_event_loop()
+        loop = self.tm.new_event_loop()
+        aloop = asyncio.get_event_loop()
+
+        self.assertIsInstance(loop, aiotaskmgr.taskmanager.Loop)
+        self.assertIsInstance(tm_loop, aiotaskmgr.taskmanager.Loop)
+        self.assertIsInstance(aloop, aiotaskmgr.taskmanager.Loop)
+        self.assertNotEqual(tm_loop.loop_id, loop.loop_id)
+        self.assertNotEqual(tm_loop.loop_id, nloop.loop_id)
+        self.assertNotEqual(tm_loop.loop_id, aloop.loop_id)
+        self.assertNotEqual(nloop.loop_id, loop.loop_id)
+        self.assertNotEqual(nloop.loop_id, aloop.loop_id)
+        self.assertEqual(loop.loop_id, aloop.loop_id)
+
+    def test_close_event_loop(self):
+        tm_loop = self.tm.get_event_loop()
+
+        self.tm.close_event_loop()
+        loop = self.tm.get_event_loop()
+
+        self.assertIsNone(loop)
+
+        # Fixing the loop for other test cases
+        loop = asyncio.get_event_loop()
+        new_tm_loop = self.tm.get_event_loop()
+
+        self.assertIsInstance(tm_loop, aiotaskmgr.taskmanager.Loop)
+        self.assertIsInstance(loop, aiotaskmgr.taskmanager.Loop)
+        self.assertNotEqual(tm_loop.loop_id, new_tm_loop.loop_id)
+        self.assertNotEqual(tm_loop.loop_id, loop.loop_id)
+        self.assertEqual(new_tm_loop.loop_id, loop.loop_id)
+
+    def test_create_task01(self):
+        """test_create_task01"""
+        async def coro():
+            await asyncio.sleep(1)
+
+        self.tm._loop.run_until_complete(coro())
+
+    @capture_logging(None)
+    def test_create_task02(self, logger):
         """test_create_task."""
-        tm = TaskManager()
+
+        async def coro_task():
+            await asyncio.sleep(2)
+            return 10
 
         async def coro():
-            await asyncio.sleep(1)
+            task = asyncio.create_task(coro_task(), name="test_create_task")
 
-        task = asyncio.create_task(coro(), name="test_create_task")
+            self.assertIsInstance(task, asyncio.Task)
+            self.assertIsInstance(self.tm.get_task(task), aiotaskmgr.taskmanager.Task)
+            self.assertGreater(len(self.tm.get_tasks()), 1)
 
-        self.assertIsInstance(task, asyncio.Task)
-        self.assertIsInstance(tm.get_task(task), Task)
-        self.assertGreater(len(tm.get_tasks()), 1)
+            result = await task
+            print(result)
 
-        task.cancel()
 
-    async def test_asyncio_create_task(self):
-        """test_asyncio_create_task."""
-        async def coro():
-            await asyncio.sleep(1)
-
-        loop = self.change_event_loop()
-        task = loop.create_task(coro(), name="test_asyncio_create_task")
-
-        with self.assertRaises(KeyError):
-            TaskManager().get_task(task)
-
-        task.cancel()
+        self.tm.get_event_loop().run_until_complete(coro())
+        # asyncio.get_event_loop().run_until_complete(coro())
