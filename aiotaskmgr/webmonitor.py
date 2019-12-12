@@ -5,10 +5,15 @@ from typing import NoReturn
 
 import aiomonitor
 from terminaltables import AsciiTable
+from pprint import pprint as print
 
 
 class WebMonitor(aiomonitor.Monitor):
     """Webmonitor."""
+
+    def __init__(self, _loop, tm):
+        super(WebMonitor, self).__init__(loop=_loop)
+        self._tm = tm
 
     def do_hello(self, _sin, _sout, _name=None):
         """do_hello."""

@@ -83,10 +83,25 @@ class AIOTaskMgrException(Exception):
     """
 
 
+class AIOTask(asyncio.Task):
+    def __init__(self, coro, base_task, *, loop=None, name=None):
+        super(AIOTask, self).__init__(coro, loop=loop, name=name)
+        self.base_task = base_task
+
+    def set_name(self, value):
+        super(AIOTask, self).set_name(value)
+        self.base_task.name = str(value)
+
+    def _to_json(self):
+        return super(AIOTask, self)._repr_info()
+
+
+
 class BaseTask(object):
     """BaseTask for the all TaskManager Task classes.
 
     """
+
 
     def __init__(self, name):
         """BaseTask for the all TaskManager Task classes.
@@ -174,7 +189,9 @@ class BaseTask(object):
         Returns:
             asyncio.task.Task: Task
         """
-        return self._tm.create_task(self, self.name)
+        _task = self._tm.create_task(self, self.name)
+        self._context['eliot_task'] = current_action().serialize_task_id()
+        return _task
 
 
 class TaskManager(object):
@@ -220,6 +237,7 @@ class TaskManager(object):
         """
         try:
             loop = asyncio.get_running_loop()
+            print(loop)
             for task in loop.all_tasks():
                 task.cancel()
             loop.close()
@@ -242,7 +260,7 @@ class TaskManager(object):
         """Setup Webmonitor.
 
         """
-        TaskManager.__instance._aiom = WebMonitor(loop=self._loop)
+        TaskManager.__instance._aiom = WebMonitor(self._loop, TaskManager.__instance)
         TaskManager.__instance._aiom.start()
 
     @staticmethod
@@ -321,8 +339,10 @@ class TaskManager(object):
             asyncio.tasks.Task: Task
         """
         # self.logger.debug(f"fn: __create_task: {task}")
-        task._task = asyncio.tasks.Task(task._coro, loop=self._loop, name=task.name)
-        # task._task = self._loop.create_task(task._coro, name=task.name)
+        # task._task = asyncio.tasks.Task(task._coro, loop=self._loop, name=task.name)
+        task._task = AIOTask(task._coro, task, loop=self._loop, name=task.name)
+
+        task._task.Task = task
         task._task.add_done_callback(task._on_task_done)
 
         _update_source_traceback(task._task)
@@ -335,7 +355,7 @@ class TaskManager(object):
         finally:
             task._task.context.update(task._context)
 
-        self.logger.debug(f"create_task task: {task}")
+        self.logger.debug(f"created asyncio task: {task._task.get_name()}")
         self.register_task(task)
 
         return task._task
@@ -463,7 +483,7 @@ class TaskManager(object):
         """
 
         self._tasks[task._task] = task
-        self.logger.info(f"Registered task: {task}")
+        self.logger.info(f"Registered task: {task.name}")
 
     def unregister_task(self, task) -> NoReturn:
         """Unregister the task from the TaskManager.
@@ -563,7 +583,6 @@ class Task(BaseTask):
     def __init__(self, coro, name, *args, **kwargs):
         """Task.__init__."""
         super(Task, self).__init__(name)
-
         self._args = args
         self._kwargs = kwargs
 
@@ -623,5 +642,5 @@ class DelayedTask(BaseTask):
 
 
 # Initialize by default
-tm = TaskManager(None)
+# tm = TaskManager(None)
 # tm.get_event_loop().set_debug(True)
