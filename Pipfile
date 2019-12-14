@@ -10,6 +10,7 @@ python_full_version = ">=3.8.0"
 allow_prereleases = true
 
 [packages]
+aiofiles = "*"
 aiomonitor = "*"
 eliot = "*"
 uvloop = "*"

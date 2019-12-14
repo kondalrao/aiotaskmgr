@@ -1,5 +1,7 @@
 """Logging."""
 import json as pyjson
+from datetime import datetime
+import time
 import asyncio
 import eliot
 import aiofiles
@@ -9,15 +11,15 @@ from logging import CRITICAL, DEBUG, ERROR, INFO, WARNING, Handler
 
 from eliot import (add_destinations, add_global_fields, write_traceback)   # noqa
 from eliot.json import EliotJSONEncoder
+
+org_print = print
 from pprint import pprint as print
-from eliot.testing import capture_logging
-# from eliot.stdlib import EliotHandler
 
 
 class NXOSHandler(Handler):
     def emit(self, record):
         eliot.log_message(
-            message_type="nxosdebug",
+            message_type=record.name,
             log_level=record.levelname,
             # logger=record.name,
             message=record.getMessage(),
@@ -63,20 +65,31 @@ class AsyncFileDestination(object):
         """
         @param message: A message dictionary.
         """
+        msg = pyjson.dumps(message, cls=MyEncoder) + '\n'
+        msg_lvl = logging.getLevelName(message['log_level'])
+
         def write_file(msg):
             self._file.write(pyjson.dumps(message, cls=MyEncoder) + '\n')
             self._file.flush()
 
         def write_file2(msg):
-            data = f"{message['timestamp']:020} {message['logger']:25} {message['log_level']:10} {message['message']}"
-            print(data)
+            if 'message' in msg:
+                info = []
+                msg_ts = msg['timestamp']
+                ts = datetime.fromtimestamp(float(msg_ts))
+                info.append(f"{ts}")
+                info.append(f"{msg['message_type']:30}")
+                info.append(f"{msg['log_level']:10}")
+                info.append(f"{msg['message']}")
 
-        if(self.log_level <= logging.getLevelName(message['log_level'])):
-            msg = pyjson.dumps(message, cls=MyEncoder) + '\n'
+                data = '<{}>'.format(' '.join(info))
+                org_print(data)
+
+        if(self.log_level <= msg_lvl):
             self._logfile_task_q.put_nowait((0, msg))
 
-        # if(self.log_level == logging.DEBUG):
-        #     write_file2(message)
+        if(self.log_level <= logging.INFO):
+            write_file2(message)
 
 
 class Logging():
@@ -105,7 +118,7 @@ class Logging():
 
 
     def reset_logging(self, conf=None):
-        """ Reset logging.
+        """Reset logging.
 
         Removes any configured handlers and filters.
         Sets new configuration (if provided).
@@ -125,21 +138,22 @@ class Logging():
         self.log_level = lvl
 
         for comp, lvl in self.components.items():
-            logging.getLogger(comp).setLevel(lvl)
+            if comp != 'root':
+                logging.getLogger(comp).setLevel(lvl)
 
     def configure(self, lvl: int):
         self.log_level = lvl
 
         logging.basicConfig(level=self.log_level)
-        # reset_logging()
+        self.reset_logging()
 
         self.root_logger.setLevel(self.log_level)
         logger.setLevel(self.log_level)
         self.root_logger.addHandler(NXOSHandler())
         self.set_log_level_all(self.log_level)
 
-        add_global_fields(message_type="aiotaskmgr")
-        add_global_fields(log_level="INFO")
+        # add_global_fields(message_type="aiotaskmgr")
+        add_global_fields(log_level=self.loglevel_mapping[lvl])
 
     def new_destination(self, file):
         add_destinations(AsyncFileDestination(file, self))

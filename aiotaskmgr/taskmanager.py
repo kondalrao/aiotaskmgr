@@ -6,12 +6,12 @@ import signal
 import uuid
 from contextlib import suppress
 from typing import Any, Dict, Callable, NoReturn
-import aiotaskmgr
+from aiotaskmgr import use_uvloop
 from aiotaskmgr.webmonitor import WebMonitor
 
 from eliot import Action, start_task, start_action, log_call, current_action
 
-if aiotaskmgr.use_uvloop:
+if use_uvloop:
     from uvloop import EventLoopPolicy as __BaseEventLoopPolicy
     from uvloop import Loop as __BaseLoop
 else:
