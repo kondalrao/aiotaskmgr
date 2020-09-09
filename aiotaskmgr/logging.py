@@ -54,12 +54,6 @@ class AsyncFileDestination(object):
 
                 await log_file.write(buff)
 
-    # async def logfile_task(self):
-    #     async with aiofiles.open(self._file, "w") as log_file:
-    #         while True:
-    #             (_, buff) = await self._logfile_task_q.get()
-    #             await log_file.write(buff)
-
 
     def __call__(self, message):
         """
@@ -82,7 +76,7 @@ class AsyncFileDestination(object):
                 info.append(f"{msg['log_level']:10}")
                 info.append(f"{msg['message']}")
 
-                data = '<{}>'.format(' '.join(info))
+                data = '{}'.format(' '.join(info))
                 org_print(data)
 
         if(self.log_level <= msg_lvl):
@@ -140,6 +134,7 @@ class Logging():
         for comp, lvl in self.components.items():
             if comp != 'root':
                 logging.getLogger(comp).setLevel(lvl)
+                # logging.getLogger(comp).propagate = False
 
     def configure(self, lvl: int):
         self.log_level = lvl

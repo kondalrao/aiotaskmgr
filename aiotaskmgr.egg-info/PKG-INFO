@@ -1,0 +1,14 @@
+Metadata-Version: 1.1
+Name: aiotaskmgr
+Version: 0.0.1
+Summary: UNKNOWN
+Home-page: https://github.com/kondalrao/aiotaskmgr
+Author: Kondal Rao Komaragiri and individual contributors
+Author-email: kondal04@gmail.com
+License: BSD or Apache License, Version 2.0
+Description: UNKNOWN
+Platform: UNKNOWN
+Classifier: Intended Audience :: Developers
+Classifier: Programming Language :: Python
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.8

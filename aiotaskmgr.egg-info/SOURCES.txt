@@ -1,0 +1,16 @@
+README.md
+setup.cfg
+setup.py
+aiotaskmgr/__about__.py
+aiotaskmgr/__init__.py
+aiotaskmgr/logging.new.py
+aiotaskmgr/logging.py
+aiotaskmgr/logging_loguru.py
+aiotaskmgr/taskmanager.py
+aiotaskmgr/utility.py
+aiotaskmgr/webmonitor.py
+aiotaskmgr.egg-info/PKG-INFO
+aiotaskmgr.egg-info/SOURCES.txt
+aiotaskmgr.egg-info/dependency_links.txt
+aiotaskmgr.egg-info/requires.txt
+aiotaskmgr.egg-info/top_level.txt

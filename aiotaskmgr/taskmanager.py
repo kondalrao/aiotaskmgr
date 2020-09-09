@@ -42,6 +42,12 @@ class Loop(__BaseLoop):
             f'closed={self.is_closed()} debug={self.get_debug()}>'
         )
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        pass
+
 
 class EventLoopPolicy(__BaseEventLoopPolicy):
     """EventLoopPolicy.
@@ -54,10 +60,10 @@ class EventLoopPolicy(__BaseEventLoopPolicy):
         Returns:
             Loop: TaskManager loop.
         """
-        _loop = TaskManager().get_event_loop()
-        if _loop is None:
-            TaskManager().set_event_loop(Loop())
-            _loop = TaskManager().get_event_loop()
+
+        if (_loop := TaskManager().get_event_loop()) is None:
+            _loop = Loop()
+            TaskManager().set_event_loop(_loop)
 
         return _loop
 
@@ -81,6 +87,7 @@ class AIOTaskMgrException(Exception):
     """Exception raised when an application reset is requested.
 
     """
+    pass
 
 
 class AIOTask(asyncio.Task):
@@ -102,7 +109,6 @@ class BaseTask(object):
 
     """
 
-
     def __init__(self, name):
         """BaseTask for the all TaskManager Task classes.
 
@@ -123,14 +129,14 @@ class BaseTask(object):
         info.append(f"q_len: {self._queue.qsize()}")
         info.append(f"task: {self._task}")
 
-        return '<{}>'.format(' '.join(info))
+        return '{}'.format(' '.join(info))
 
     def __str__(self):
         info = [f"{self.__class__.__name__}: {self.name}"]
         info.append(f"q_len: {self._queue.qsize()}")
         info.append(f"task: {self._task}")
 
-        return '<{}>'.format(' '.join(info))
+        return '{}'.format(' '.join(info))
 
     def _to_json(self):
         info = {}
@@ -203,14 +209,14 @@ class TaskManager(object):
 
     # @log_call(include_args=[], include_result=False)
     def __new__(cls, loop=None) -> object:
-        """New instance creation.
+        """Creates an instance of TaskManager.
+
+        This is a singleton class.
 
         Args:
             loop (Loop):
-            uvloop (bool):
         """
         if TaskManager.__instance is None:
-            logging.info('Creating a new instance of TaskManager.')
             TaskManager.__instance = object.__new__(cls)
             TaskManager.__instance._loop = loop
             TaskManager.__instance._tasks = {}
@@ -222,6 +228,8 @@ class TaskManager(object):
                 TaskManager.__instance._loop = loop
 
             TaskManager.__instance.__setup_webmonitor()
+
+            logging.info('Created a new instance of TaskManager.')
         # else:
         #     TaskManager.__instance.logger.debug(f'TaskManager is already created. {TaskManager.__instance}')
 
@@ -242,6 +250,8 @@ class TaskManager(object):
                 task.cancel()
             loop.close()
         except RuntimeError:
+            pass
+        except AttributeError:
             pass
 
         asyncio.set_event_loop_policy(EventLoopPolicy())
@@ -328,7 +338,7 @@ class TaskManager(object):
 
         return task
 
-    @log_call(action_type="__create_task", include_args=['task'], include_result=False)
+    # @log_call(action_type="__create_task", include_args=['task'], include_result=False)
     def __create_task(self, task):
         """
 
